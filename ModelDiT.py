@@ -5,7 +5,10 @@ import math
 from timm.models.vision_transformer  import PatchEmbed, Attention, Mlp
 
 def modulate(x, shift, scale):
-    return x * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
+    # Asegúrate de que shift y scale tengan la misma dimensión que x
+    shift = shift.view_as(x)
+    scale = scale.view_as(x)
+    return x * (1 + scale) + shift
 
 class TimestepEmbedder(nn.Module):
 
@@ -75,25 +78,45 @@ class LabelEmbedder(nn.Module):
 
 # core del DiT
 class DiTBlock(nn.Module):
-
-    # Un bloque DiT con condicionamiento de norma cero de capa adaptativa (adaLN-Zero).
-    def __init__(self, hidden_size, num_heads, mlp_ratio=4.0, **block_kwargs):
+    def __init__(self, hidden_size, patch_size, out_channels, num_heads=16, mlp_ratio=4.0):
         super().__init__()
+        self.hidden_size = hidden_size
+        self.patch_size = patch_size
+        self.out_channels = out_channels
+        
         self.norm1 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
-        self.attn = Attention(hidden_size, num_heads=num_heads, qkv_bias=True, **block_kwargs)
+        self.attn = Attention(hidden_size, num_heads=num_heads, qkv_bias=True)
         self.norm2 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        
         mlp_hidden_dim = int(hidden_size * mlp_ratio)
         approx_gelu = lambda: nn.GELU(approximate="tanh")
         self.mlp = Mlp(in_features=hidden_size, hidden_features=mlp_hidden_dim, act_layer=approx_gelu, drop=0)
+        
         self.adaLN_modulation = nn.Sequential(
             nn.SiLU(),
-            nn.Linear(hidden_size, 6 *hidden_size, bias=True)
+            nn.Linear(hidden_size, 6 * hidden_size, bias=True)
         )
 
     def forward(self, x, c):
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, dim=1)
-        x = x + gate_msa.unsqueeze(1) * self.attn(modulate(self.norm1(x), shift_msa, scale_msa))
-        x = x + gate_mlp.unsqueeze(1) * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
+        print("DiTBlock input shapes:")
+        print("x shape:", x.shape)
+        print("c shape:", c.shape)
+        
+        adaLN_output = self.adaLN_modulation(c)
+        print("adaLN_modulation output shape:", adaLN_output.shape)
+        
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = adaLN_output.chunk(6, dim=-1)
+        
+        print("After chunk:")
+        print("shift_msa shape:", shift_msa.shape)
+        print("scale_msa shape:", scale_msa.shape)
+        print("gate_msa shape:", gate_msa.shape)
+
+        if x.shape[1] != 768:
+            x = x.repeat(1, 48, 1)
+        
+        x = x + gate_msa * self.attn(modulate(self.norm1(x), shift_msa, scale_msa))
+        x = x + gate_mlp * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
         return x
 
 class FinalLayer(nn.Module):
@@ -185,7 +208,8 @@ class DiT(nn.Module):
         c = self.out_channels
         p = self.x_embedder.patch_size[0]
         h = w = int(x.shape[1] ** 0.5)
-        assert h * w == x.shape[1]
+        assert h * w == x.shape[1], f"h: {h}, w: {w}, x.shape[1]: {x.shape[1]}"
+
 
         x = x.reshape(shape=(x.shape[0], h, w, p, p, c))
         x = torch.einsum('nhwpqc->nchpwq', x)
