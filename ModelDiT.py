@@ -161,6 +161,7 @@ class DiT(nn.Module):
         ])
 
         self.final_layer = FinalLayer(hidden_size, patch_size, self.out_channels)
+        self.num_patches = (input_size // patch_size) ** 2
         self.initialize_weights()
         print(f"Pesos text_projector: {self.text_projector.weight.shape}, Bias: {self.text_projector.bias.shape}")
 
@@ -206,15 +207,14 @@ class DiT(nn.Module):
         imgs: (N, H, W, C)
         """
         c = self.out_channels
-        p = self.x_embedder.patch_size[0]
+        p = self.patch_size
         h = w = int(x.shape[1] ** 0.5)
-        assert h * w == x.shape[1], f"h: {h}, w: {w}, x.shape[1]: {x.shape[1]}"
+        assert h * w == self.num_patches, f"h: {h}, w: {w}, num_patches: {self.num_patches}"
 
 
         x = x.reshape(shape=(x.shape[0], h, w, p, p, c))
         x = torch.einsum('nhwpqc->nchpwq', x)
-        imgs = x.reshape(shape=(x.shape[0], c, h * p, h * p))
-        return imgs
+        return x.reshape(shape=(x.shape[0], c, h * p, h * p))
 
     def forward(self, x, t, y, text_embed):
         """
