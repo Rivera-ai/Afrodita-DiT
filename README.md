@@ -1,6 +1,6 @@
-## I am implementing conditional DiT by text
+# I am implementing conditional DiT by text
 
-# Train File test with MNIST is ``` TrainDiT2TestMnist.py ```
+## Train File test with MNIST is ``` TrainDiT2TestMnist.py ```
 
 Terminal:  
 ``` 
