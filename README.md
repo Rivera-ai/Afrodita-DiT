@@ -41,4 +41,7 @@ Traceback (most recent call last):
 RuntimeError: The size of tensor a (4) must match the size of tensor b (16) at non-singleton dimension 1
 ```
 
+# Train File test with MNIST is ``` TrainDiT2TestMnist.py ```
+
+
 ## I have based myself on the Meta repo: https://github.com/facebookresearch/DiT.git
