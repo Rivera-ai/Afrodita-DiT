@@ -11,9 +11,9 @@ import argparse
 import logging
 import os
 
-from ModelDiT2 import DiT_models
+from AfroditaDiT import DiT_models
 from Diffusion import create_diffusion
-from diffusers.models import AutoencoderKL
+from diffusers.models.autoencoders.autoencoder_kl import AutoencoderKL
 from Text import get_bert, get_tokenizer, tokenize, bert_embed
 
 #################################################################################
@@ -80,6 +80,71 @@ class CustomDataset(torch.utils.data.Dataset):
             'tokens': tokens
         }
 
+@torch.no_grad()
+def generate_and_save_images(model, vae, diffusion, device, epoch, step, save_dir, batch):
+    """
+    Generate images using the model and save them along with real images
+    """
+    model.eval()
+    
+    # Create directory for this checkpoint
+    save_path = os.path.join(save_dir, f"samples/epoch_{epoch}_step_{step}")
+    os.makedirs(save_path, exist_ok=True)
+    
+    # Get a real image from the batch to save as reference
+    real_images = batch['image'][:4]  # Save first 4 images
+    
+    # Save real images
+    for idx, img in enumerate(real_images):
+        # Denormalize the images
+        img = img * 0.5 + 0.5  # from [-1, 1] to [0, 1]
+        img = (img * 255).clamp(0, 255).to(torch.uint8)
+        img = transforms.ToPILImage()(img)
+        img.save(f"{save_path}/real_{idx}.png")
+    
+    # Generate latent noise
+    noise = torch.randn(4, 4, 32, 32).to(device)  # Adjust size based on your VAE
+    
+    # Get text embeddings for generation
+    tokens = batch['tokens'][:4].to(device)
+    with torch.no_grad():
+        text_embeds = bert_embed(tokens)
+    
+    # Sample images
+    model_kwargs = {
+        'y': torch.zeros(4, dtype=torch.long, device=device),
+        'text_embed': text_embeds
+    }
+    
+    # Generate images using ddim_sample_loop
+    samples = diffusion.ddim_sample_loop(
+        model=model,
+        shape=noise.shape,
+        noise=noise,
+        clip_denoised=True,
+        denoised_fn=None,
+        cond_fn=None,
+        model_kwargs=model_kwargs,
+        device=device,
+        progress=False,
+        eta=0.0  # Deterministic DDIM sampling
+    )
+    
+    # Decode the latents to images
+    with torch.no_grad():
+        samples = 1 / 0.18215 * samples
+        samples = vae.decode(samples).sample
+    
+    # Save generated images
+    for idx, img in enumerate(samples):
+        # Denormalize and convert to PIL
+        img = (img * 0.5 + 0.5).clamp(0, 1)
+        img = transforms.ToPILImage()(img.cpu())
+        img.save(f"{save_path}/generated_{idx}.png")
+    
+
+    return save_path
+
 def main(args):
     # Setup
     os.makedirs(args.results_dir, exist_ok=True)
@@ -129,8 +194,10 @@ def main(args):
 
     # Training loop
     model.train()
+    print(f"Training for {args.epochs} epochs...")
     for epoch in range(args.epochs):
         logger.info(f"Starting epoch {epoch}")
+        print(f"\nBeginning epoch {epoch + 1}/{args.epochs}...")
         for step, batch in enumerate(loader):
             x = batch['image'].to(device)
             tokens = batch['tokens'].to(device)
@@ -157,6 +224,19 @@ def main(args):
             # Logging
             if step % args.log_every == 0:
                 logger.info(f"Epoch: {epoch}, Step: {step}, Loss: {loss.item():.4f}")
+                print(f"Epoch: {epoch}, Step: {step}, Loss: {loss.item():.4f}")
+
+                save_path = generate_and_save_images(
+                    model=model,
+                    vae=vae,
+                    diffusion=diffusion,
+                    device=device,
+                    epoch=epoch,
+                    step=step,
+                    save_dir=experiment_dir,
+                    batch=batch
+                )
+                
 
         # Save checkpoint
         if (epoch + 1) % args.ckpt_every == 0:
