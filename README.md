@@ -1,4 +1,4 @@
-# 🐉Aphrodite-DiT is a text-driven DiT implementation, I hope you like it :b
+# 🐉Afrodita-DiT is a text-driven DiT implementation, I hope you like it :b
 
 ## Train File test with MNIST is ``` TrainDiT2TestMnist.py ```
 
