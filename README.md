@@ -43,7 +43,10 @@ RuntimeError: The size of tensor a (4) must match the size of tensor b (16) at n
 
 # Train File test with MNIST is ``` TrainDiT2TestMnist.py ```
 
-terminal:  ``` python TrainDiT2TestMnist.py  --batch-size 4 --epochs 10 ```
+Terminal:  
+``` 
+python TrainDiT2TestMnist.py  --batch-size 4 --epochs 10
+```
 
 
 ## I have based myself on the Meta repo: https://github.com/facebookresearch/DiT.git
