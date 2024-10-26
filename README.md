@@ -12,6 +12,14 @@ If you have a 24GB graphics card you can train with it with these settings:
 python TrainDiT2TestMnist.py  --batch-size 48 --epochs 10
 ```
 
+## Train File with Flickr30k is ``` TrainDiTFlickr30k.py ```
+
+Terminal:  
+``` 
+python TrainDiTFlickr30k.py  --batch-size 10 --epochs 10
+```
+
+
 ## First training test with MNIST
 
 |   Image generated at epoch 0 and step 2900📸   |   Real image at epoch 0 and step 2900📸   |   Image generated at epoch 1 and step 1100📸   |   Real image at epoch 1 and step 1100📸   | 
