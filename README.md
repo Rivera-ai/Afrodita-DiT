@@ -18,5 +18,9 @@ python TrainDiT2TestMnist.py  --batch-size 48 --epochs 10
 | :------------------------: | :--------------------------: | :-------------------------: | :-------------------------: |
 | ![](generated_2_ep0_step2900.png) | ![](real_2_ep0_step2900.png) | ![](generated_3_ep1_step1100.png) | ![](real_3_ep1_step1100.png) |
 
+## Training tests are being done in Colab with the model size "DiT-S/8" and the first checkpoint that was saved has the size of 621MB, then I will do a test with some dataset like MSCOCO or flickr30k
+
+![](cola.PNG)
+
 
 ## I have based myself on the Meta repo: https://github.com/facebookresearch/DiT.git
