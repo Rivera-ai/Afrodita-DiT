@@ -226,7 +226,7 @@ def main(args):
         logger.info(f"Starting epoch {epoch}")
         print(f"\nBeginning epoch {epoch + 1}/{args.epochs}...")
         for step, batch in enumerate(loader):
-            print(f"Epoch {epoch + 1}, Step {step}", flush=True)
+            print(f"Epoch {epoch}, Step {step}", flush=True)
             x = batch['image'].to(device)
             tokens = batch['tokens'].to(device)
 
